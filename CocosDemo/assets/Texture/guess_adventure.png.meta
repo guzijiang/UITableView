@@ -1,0 +1,31 @@
+{
+  "ver": "2.2.0",
+  "uuid": "fa8975b4-7f84-40e0-be01-1e867fcac856",
+  "type": "sprite",
+  "wrapMode": "clamp",
+  "filterMode": "bilinear",
+  "premultiplyAlpha": false,
+  "subMetas": {
+    "guess_adventure": {
+      "ver": "1.0.3",
+      "uuid": "3dfb8965-53a2-4644-8f4a-b7f84aa7ec57",
+      "rawTextureUuid": "fa8975b4-7f84-40e0-be01-1e867fcac856",
+      "trimType": "auto",
+      "trimThreshold": 1,
+      "rotated": false,
+      "offsetX": 0,
+      "offsetY": 0,
+      "trimX": 0,
+      "trimY": 0,
+      "width": 144,
+      "height": 144,
+      "rawWidth": 144,
+      "rawHeight": 144,
+      "borderTop": 0,
+      "borderBottom": 0,
+      "borderLeft": 0,
+      "borderRight": 0,
+      "subMetas": {}
+    }
+  }
+}
