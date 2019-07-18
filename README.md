@@ -14,10 +14,13 @@ const tableView: UITableViewH = new UITableViewH({
     nodeRemoveForIndexCB: this.nodeRemoveForIndexCB.bind(this)
 });
 ```
+
 //注册复用的Node
+```
 tableView.registerNodeTemplateOfKey(this.CELL_LIKEITEM_IDENTIFYT, likeItemNode);        
+```
 
-
+```
 /**
  * Cell高度
  * @param tableView 
@@ -27,7 +30,9 @@ tableView.registerNodeTemplateOfKey(this.CELL_LIKEITEM_IDENTIFYT, likeItemNode);
 private nodeEstimatedHeightOrWidthCB(tableView: UITableViewH, index: number, data: any): number {
     return this.CELL_LIKEITEM_WIDTH;
 }
+```
 
+```
 /**
  * cell移除事件
  * @param tableView 
@@ -37,7 +42,9 @@ private nodeEstimatedHeightOrWidthCB(tableView: UITableViewH, index: number, dat
 private nodeRemoveForIndexCB(tableView: UITableViewH, index: number, item: cc.Node): void {
     ALUtil.LOG('ALGuessLike nodeRemoveForIndexCB index', index);
 }
+```
 
+```
 /**
  * 正在展示cell
  * @param tableView 
@@ -49,6 +56,7 @@ private nodeForIndexCB(tableView: UITableViewH, index: number, data: any): cc.No
     ...
     return itemNode;
 }
+```
 
 注意点：scrollview，content，itemNode的锚点如果是横版的话应该是（0,0.5）竖版的话应该是（0.5， 1）
   
