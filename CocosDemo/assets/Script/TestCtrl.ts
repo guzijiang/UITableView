@@ -44,12 +44,9 @@ export class TestCtrl extends cc.Component {
         if (!this._boxNode) {
             this._boxNode = cc.instantiate(this.boxPrefab);
             this.node.addChild(this._boxNode);
+            ALGameBox.instance._initNode(this._boxNode);
         }
-        if (this._boxNode.active) {
-            ALGameBox.instance.hideNode();
-        } else {
-            ALGameBox.instance.showNode();
-        }
+        ALGameBox.instance.showNode();
     }
 
     _getBannerNode() {
@@ -77,6 +74,7 @@ export class TestCtrl extends cc.Component {
         if (!this._likeNode) {
             this._likeNode = cc.instantiate(this.likePrefab);
             this.node.addChild(this._likeNode);
+            ALGuessLike.instance._initNode(this._likeNode);
         }
         if (this._likeNode.active) {
             ALGuessLike.instance.hideNode();
@@ -84,11 +82,12 @@ export class TestCtrl extends cc.Component {
             ALGuessLike.instance.showNode();
         }
 
-        ALGuessLike.instance.setPos({ y: -500, w: 500 });
+        ALGuessLike.instance.setPos({ y: -200 });
+        // ALGuessLike.instance.setPos({ y: -500, w: 500 });
 
-        setTimeout(() => {
-            ALGuessLike.instance.setPos({ y: -300, w: 800 });
-        }, 3000);
+        // setTimeout(() => {
+        //     ALGuessLike.instance.setPos({ y: -300, w: 800 });
+        // }, 3000);
     }
 
     _getLikeItemNode() {
