@@ -3,6 +3,7 @@
 核心用法
 
 //初始化TableViewH 横版TableView
+```
 const tableView: UITableViewH = new UITableViewH({
     scrollview: scrollView,
     content: scrollView.content,
@@ -12,6 +13,7 @@ const tableView: UITableViewH = new UITableViewH({
     nodeForIndexCB: this.nodeForIndexCB.bind(this),
     nodeRemoveForIndexCB: this.nodeRemoveForIndexCB.bind(this)
 });
+```
 //注册复用的Node
 tableView.registerNodeTemplateOfKey(this.CELL_LIKEITEM_IDENTIFYT, likeItemNode);        
 
