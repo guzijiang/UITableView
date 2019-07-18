@@ -1,4 +1,9 @@
-
+class LogUtil {
+    public static DEBUG = true;
+    public static LOG(message?: any, ...data) {
+        if (this.DEBUG) console.log(message, data);
+    }
+}
 
 abstract class UITableView {
 
@@ -16,6 +21,7 @@ abstract class UITableView {
 
     protected nodeEstimatedHeightOrWidthCB: (tableView: UITableView, index: number, data: any) => number;
     protected nodeForIndexCB: (tableView: UITableView, index: number, data: any) => cc.Node;
+    protected nodeRemoveForIndexCB?: (tableView: UITableView, index: number, item: cc.Node) => void;
 
     protected showNodeArr: Array<ShowNode>;
     protected showNodeCount = 0;
@@ -26,28 +32,42 @@ abstract class UITableView {
     protected start_newer_index: number;
     protected stop_newer_index: number;
 
-    protected contentHeight = 0;
-    protected contentWidth = 0;
+    protected visibleHeight = 0;
+    protected visibleWidth = 0;
     protected contentLastY = 0;
 
     constructor(params: TableViewParams) {
         this.scrollview = params.scrollview;
         this.content = params.content;
-        this.direction = params.direction;
 
-        this.contentHeight = this.content.height;
-        this.contentWidth = this.content.width;
+        this.direction = params.direction;
 
         this.nodeEstimatedHeightOrWidthCB = params.nodeEstimatedHeightOrWidthCB;
         this.nodeForIndexCB = params.nodeForIndexCB;
-
+        this.nodeRemoveForIndexCB = params.nodeRemoveForIndexCB;
+        
         this.node_pools_map = new Map();
         this.node_templates_map = new Map();
-
+        
         if (params.allowScroll) {
             this.allowScroll = true;
             this.scrollview.node.on("scrolling", this._on_scrolling, this);
         }
+
+        this.refreshContentWH();
+    }
+
+    /**
+     * 刷新内容宽高
+     */
+    refreshContentWH() {
+        LogUtil.LOG("UITableView refreshContentWH");
+        
+        this.content.width = this.scrollview.node.width;
+        this.content.height = this.scrollview.node.height;
+
+        this.visibleHeight = this.content.height;
+        this.visibleWidth = this.content.width;
     }
 
     /**
@@ -69,13 +89,12 @@ abstract class UITableView {
         let node: cc.Node;
         const pools: Array<cc.Node> = this.node_pools_map.get(key);
         if (pools && pools.length > 0) {
-            // console.log("UITableView obtainNodeOfKey, pop = ", key);
             node = pools.pop();
         } else {
             const prefab = this.node_templates_map[key];
             node = cc.instantiate(prefab);
             // node = UIUtil.parseGameUIFromJSON(prefab);
-            console.log("UITableView obtainNodeOfKey, key = ", key);
+            LogUtil.LOG("UITableView obtainNodeOfKey, key = ", key);
         }
         node[this.NODEKEY] = key;
 
@@ -89,9 +108,11 @@ abstract class UITableView {
      */
     public set_data(datas: any[]) {
         if (this.objectIsEmpty(datas) || datas.length < 1) {
-            console.log("UITableView nothing to set");
+            LogUtil.LOG("UITableView nothing to set");
             return;
         }
+
+        LogUtil.LOG("UITableView set_data ");
 
         this._recycle_items();
         this.showNodeArr = new Array<ShowNode>();
@@ -105,11 +126,13 @@ abstract class UITableView {
         this.start_index = 0;
         this.stop_index = 0;
 
+        this.refreshContentWH();
+
         this.layout_items();
     }
 
     /**
-     * 追加数据源
+     * 追加数据源 单个数据
      */
     public append_data(data: any) {
         if (this.showNodeCount < 1) {
@@ -117,7 +140,7 @@ abstract class UITableView {
             return;
         }
 
-        console.log("UITableView append_data --- ", data);
+        LogUtil.LOG("UITableView append_data ");
 
         const showNode: ShowNode = this._generateShowNode(data, this.showNodeCount);
         this.showNodeArr.push(showNode);
@@ -178,7 +201,7 @@ abstract class UITableView {
     _recycle_item(showNode: ShowNode) {
         if (showNode.node) {
             const nodeKey = showNode.node[this.NODEKEY];
-            console.log('UITableView recycle_item = ', nodeKey);
+            LogUtil.LOG('UITableView recycle_item = ', nodeKey);
             let pools: Array<cc.Node> = this.node_pools_map.get(nodeKey);
             if (pools == null) {
                 pools = new Array<cc.Node>();
@@ -187,6 +210,9 @@ abstract class UITableView {
 
             //避免频繁的add remove
             showNode.node.active = false; // showNode.node.removeFromParent();
+            if (this.nodeRemoveForIndexCB) {
+                this.nodeRemoveForIndexCB(this, showNode.index, showNode.node)
+            }
             pools.push(showNode.node);
             showNode.node = null;
         }
@@ -198,7 +224,7 @@ abstract class UITableView {
      */
     _generateShowNode(data: any, index: number) {
         // 先初始化Y值 和 Height 
-        const showNode = { x: 0, y: 0, height: 0, width: 0, data: data, node: null, selected: false };
+        const showNode = { x: 0, y: 0, height: 0, width: 0, index: -1, data: data, node: null, selected: false };
         if (this.direction === ScrollDirection.Vertical) {
             const height = this.nodeEstimatedHeightOrWidthCB(this, index, showNode.data);
             showNode.y = this._tmpXY;
@@ -283,6 +309,8 @@ abstract class UITableView {
 export class UITableViewV extends UITableView {
 
     estimateContentValue(): number {
+        if (!this.showNodeArr) return 0;
+        
         let height = 0;
         this.showNodeArr.forEach((showNode, index) => {
             if (showNode.height > 0) {
@@ -333,16 +361,16 @@ export class UITableViewV extends UITableView {
         //拿content中的node的y值 和 top值比较
         const viewport_start_y = -moveY;
         //拿content中的node的y值 和 bottom比较
-        const viewport_stop_y = -moveY - this.contentHeight;
+        const viewport_stop_y = -moveY - this.visibleHeight;
 
-        // console.log('UITableView on_scrolling contentY --- ', moveY);
+        // LogUtil.LOG('UITableView on_scrolling contentY --- ', moveY);
 
         let showNode: ShowNode = null;
 
         if (scrollTo == ScrollTo.Bottom) { // 向下
             for (let i = stop; i < this.showNodeCount; i++) {
                 showNode = this.showNodeArr[i];
-                // console.log('UITableView on_scrolling Right i --- ', i, showNode.y, showNode.height);
+                // LogUtil.LOG('UITableView on_scrolling Right i --- ', i, showNode.y, showNode.height);
                 if (showNode.height < 1 || (showNode.y - showNode.height) < viewport_stop_y) { // -100 < -90
                     stop = i;
                     break;
@@ -375,7 +403,7 @@ export class UITableViewV extends UITableView {
         if (start != this.start_index || stop != this.stop_index) {
             this.start_newer_index = start;
             this.stop_newer_index = stop;
-            console.log("UITableView on_scrolling render_items --- ", start, stop);
+            LogUtil.LOG("UITableView on_scrolling render_items --- ", start, stop);
             this._render_items(scrollTo);
         }
     }
@@ -420,7 +448,7 @@ export class UITableViewV extends UITableView {
         this.start_index = this.start_newer_index;
         this.stop_index = this.stop_newer_index;
 
-        console.log("UITableView alivingShowNodesCount --- ", this._alivingItemCount());
+        LogUtil.LOG("UITableView alivingShowNodesCount --- ", this._alivingItemCount());
     }
 
     _try_recycle_item() {
@@ -463,16 +491,16 @@ export class UITableViewV extends UITableView {
 
             nextY -= node.height;
 
-            if (nextY < -this.contentHeight) {
+            if (nextY < -this.visibleHeight) {
                 this.stop_index = i;
                 break;
             }
         }
         this.content.height = this.estimateContentValue();
 
-        console.log("UITableView layout_items start_index --- ", this.start_index);
-        console.log("UITableView layout_items stop_index --- ", this.stop_index);
-        console.log("UITableView layout_items height --- ", this.content.height);
+        LogUtil.LOG("UITableView layout_items start_index --- ", this.start_index);
+        LogUtil.LOG("UITableView layout_items stop_index --- ", this.stop_index);
+        LogUtil.LOG("UITableView layout_items height --- ", this.visibleHeight, this.content.height);
     }
 
     layout_lastest_item() {
@@ -484,6 +512,7 @@ export class UITableViewV extends UITableView {
 
         if (showNode.node == null) { //不需要滚动到底部 动态修改高度
             this.content.height = this.estimateContentValue();
+            LogUtil.LOG("UITableView layout_lastest_item height1 --- ", this.content.height);
             return;
         }
 
@@ -496,8 +525,9 @@ export class UITableViewV extends UITableView {
         this.stop_index = tempStopIndex;
 
         this.content.height = this.estimateContentValue();
+        LogUtil.LOG("UITableView layout_lastest_item height2 --- ", this.content.height);
 
-        if (nextY < -this.contentHeight) {
+        if (nextY < -this.visibleHeight) {
             this.scrollview.scrollToBottom();
             this._try_recycle_item();
         }
@@ -510,6 +540,7 @@ export class UITableViewV extends UITableView {
         showNode.node = node;
         showNode.y = node.y;
         showNode.height = node.height;
+        showNode.index = index;
 
         return node;
     }
@@ -518,6 +549,7 @@ export class UITableViewV extends UITableView {
 export class UITableViewH extends UITableView {
 
     estimateContentValue(): number {
+        if (!this.showNodeArr) return 0;
         let width = 0;
         this.showNodeArr.forEach((showNode, index) => {
             if (showNode.width > 0) {
@@ -530,7 +562,18 @@ export class UITableViewH extends UITableView {
     }
 
     getItemByPos(pos: cc.Vec2): cc.Node {
-        return null;
+        let retNode: cc.Node = null;
+        for (let i = 0, l = this.showNodeArr.length; i < l; i++) {
+            const showNode = this.showNodeArr[i];
+            if (!showNode.node) {
+                continue;
+            }
+            if (pos.x < (showNode.node.x + showNode.width) && pos.x > showNode.node.x) {
+                retNode = showNode.node;
+                break;
+            }
+        }
+        return retNode;
     }
 
     scrollToY(v: number) {
@@ -554,9 +597,9 @@ export class UITableViewH extends UITableView {
         //拿content中的node的y值 和 left值比较
         const viewport_start_y = -moveY;
         //拿content中的node的y值 和 right比较
-        const viewport_stop_y = -moveY + this.contentWidth;
+        const viewport_stop_y = -moveY + this.visibleWidth;
 
-        console.log('UITableView on_scrolling contentY --- ', moveY);
+        // LogUtil.LOG('UITableView on_scrolling contentY --- ', moveY);
 
         let showNode: ShowNode = null;
 
@@ -594,7 +637,7 @@ export class UITableViewH extends UITableView {
         if (start != this.start_index || stop != this.stop_index) {
             this.start_newer_index = start;
             this.stop_newer_index = stop;
-            console.log("UITableView on_scrolling render_items --- ", start, stop);
+            LogUtil.LOG("UITableView on_scrolling render_items --- ", start, stop);
             this._render_items(scrollTo);
         }
     }
@@ -638,7 +681,7 @@ export class UITableViewH extends UITableView {
         this.start_index = this.start_newer_index;
         this.stop_index = this.stop_newer_index;
 
-        console.log("UITableView alivingShowNodesCount --- ", this._alivingItemCount());
+        LogUtil.LOG("UITableView alivingShowNodesCount --- ", this._alivingItemCount());
     }
 
     _try_recycle_item() {
@@ -681,15 +724,16 @@ export class UITableViewH extends UITableView {
 
             nextX += node.width;
 
-            if (nextX > this.contentWidth) {
+            if (nextX > this.visibleWidth) {
                 this.stop_index = i;
                 break;
             }
         }
         this.content.width = this.estimateContentValue();
 
-        console.log("UITableView layout_items start_index --- ", this.start_index);
-        console.log("UITableView layout_items stop_index --- ", this.stop_index);
+        LogUtil.LOG("UITableView layout_items start_index --- ", this.start_index);
+        LogUtil.LOG("UITableView layout_items stop_index --- ", this.stop_index);
+        LogUtil.LOG("UITableView layout_items width --- ", this.visibleWidth, this.content.width);
     }
 
     layout_lastest_item() {
@@ -714,7 +758,7 @@ export class UITableViewH extends UITableView {
 
         this.content.width = this.estimateContentValue();
 
-        if (nextX > this.contentWidth) {
+        if (nextX > this.visibleWidth) {
             this.scrollview.scrollToRight();
             this._try_recycle_item();
         }
@@ -727,6 +771,7 @@ export class UITableViewH extends UITableView {
         showNode.node = node;
         showNode.x = node.x;
         showNode.width = node.width;
+        showNode.index = index;
 
         return node;
     }
@@ -752,6 +797,7 @@ type TableViewParams = {
     nodeEstimatedHeightOrWidthCB: (tableView: UITableView, index: number, data: any) => number;
     nodeForIndexCB: (tableView: UITableView, index: number, data: any) => cc.Node;
     nodeSelectForIndexCB?: (tableView: UITableView, index: number, item: cc.Node) => void;
+    nodeRemoveForIndexCB?: (tableView: UITableView, index: number, item: cc.Node) => void;
     scrollToEndCB?: () => void;
 }
 
@@ -760,6 +806,7 @@ type ShowNode = {
     y: number;
     height: number;
     width: number;
+    index: number;
     data: any;
     node: cc.Node;
     selected: boolean;
