@@ -1,8 +1,8 @@
 # UITableView
 
-####核心用法
+#### 核心用法
 
-#####初始化TableViewH 横版TableView
+##### 初始化TableViewH 横版TableView
 ```
 const tableView: UITableViewH = new UITableViewH({
     scrollview: scrollView,
@@ -15,12 +15,12 @@ const tableView: UITableViewH = new UITableViewH({
 });
 ```
 
-#####注册复用的Node
+##### 注册复用的Node
 ```
 tableView.registerNodeTemplateOfKey(this.CELL_LIKEITEM_IDENTIFYT, likeItemNode);        
 ```
 
-#####需要实现的Method
+##### 需要实现的Method
 ```
 /**
  * Cell高度
@@ -60,5 +60,5 @@ private nodeForIndexCB(tableView: UITableViewH, index: number, data: any): cc.No
 ```
 
 **注意点：** 
-scrollview，content，itemNode的锚点如果是横版的话应该是（0,0.5）竖版的话应该是（0.5， 1）
+scrollview，content，itemNode的锚点如果是横版的话应该是（0,0.5）竖版的话应该是（0.5,1）
   
